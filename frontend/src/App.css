@@ -39,6 +39,7 @@
   flex: 1;
 }
 
+/* Market list */
 .market-list ul {
   list-style: none;
   padding: 0;
@@ -70,6 +71,7 @@
   color: #64748b;
 }
 
+/* Price chart */
 .price-chart {
   background: white;
   border: 1px solid #e2e8f0;
@@ -77,6 +79,228 @@
   padding: 1.5rem;
 }
 
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  background: none;
+  color: #64748b;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: #1a1a2e;
+}
+
+.tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  font-weight: 600;
+}
+
+/* Forecast panel */
+.forecast-panel {
+  margin-top: 1.5rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.forecast-panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.target-selector {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.target-btn {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s;
+}
+
+.target-btn:hover {
+  background: #f1f5f9;
+}
+
+.target-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.target-horizon {
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  color: #64748b;
+}
+
+.run-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.run-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.run-list li:hover {
+  background: #f1f5f9;
+}
+
+.run-list li.selected {
+  background: #eff6ff;
+}
+
+.run-list h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-completed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-running {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-pending {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.run-time {
+  color: #64748b;
+}
+
+/* Series explorer */
+.series-explorer {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.series-explorer h3 {
+  margin: 0 0 1rem;
+}
+
+.category-group {
+  margin-bottom: 1rem;
+}
+
+.category-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.series-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.series-chip {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s;
+}
+
+.series-chip:hover {
+  background: #f1f5f9;
+}
+
+.series-chip.active {
+  background: #eff6ff;
+  font-weight: 500;
+}
+
+.series-unit {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.series-chart {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.series-chart h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Utility */
 .error {
   color: #dc2626;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 0.9rem;
 }

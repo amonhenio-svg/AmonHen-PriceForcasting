@@ -8,14 +8,17 @@ API documentation: https://open-meteo.com/en/docs
 Free, no API key required.
 """
 
+import logging
 from datetime import datetime
 
 import pandas as pd
+import requests
 
 from app.data.sources.base import BaseDataSource
 
+logger = logging.getLogger(__name__)
+
 # Representative locations for weather data per bidding zone
-# Using approximate centroids of major demand areas
 ZONE_LOCATIONS = {
     "DE_LU": {"lat": 51.0, "lon": 10.0, "name": "Germany (central)"},
     "FR": {"lat": 46.6, "lon": 2.5, "name": "France (central)"},
@@ -39,24 +42,24 @@ ZONE_LOCATIONS = {
 WEATHER_VARIABLES = [
     "temperature_2m",
     "windspeed_10m",
-    "windspeed_100m",        # better proxy for wind turbine height
+    "windspeed_100m",
     "winddirection_10m",
-    "shortwave_radiation",   # proxy for solar generation
+    "shortwave_radiation",
     "direct_radiation",
     "diffuse_radiation",
     "cloudcover",
     "precipitation",
 ]
 
-BASE_URL = "https://api.open-meteo.com/v1"
+HISTORICAL_URL = "https://archive-api.open-meteo.com/v1/archive"
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 
 class OpenMeteoDataSource(BaseDataSource):
     """Connector for the Open-Meteo weather API (free, no key required)."""
 
     def __init__(self, api_key: str | None = None):
-        super().__init__(api_key=None)  # Open-Meteo is free
-        self.base_url = BASE_URL
+        super().__init__(api_key=None)
 
     def fetch(
         self,
@@ -68,6 +71,9 @@ class OpenMeteoDataSource(BaseDataSource):
 
         series_key format: "{variable}:{zone}"
         e.g. "temperature_2m:DE_LU"
+
+        Automatically chooses between the archive API (historical)
+        and the forecast API (recent/future).
         """
         variable, zone = series_key.split(":")
         location = ZONE_LOCATIONS[zone]
@@ -81,10 +87,88 @@ class OpenMeteoDataSource(BaseDataSource):
             "timezone": "UTC",
         }
 
-        # TODO: Implement actual HTTP request
-        # Open-Meteo returns JSON that maps directly to a DataFrame
-        # For now, return empty DataFrame with correct schema
-        return pd.DataFrame(columns=["timestamp", "value"])
+        # Use archive API for dates more than 5 days in the past
+        now = datetime.utcnow()
+        if (now - end).days > 5:
+            url = HISTORICAL_URL
+        else:
+            url = FORECAST_URL
+
+        logger.info("Open-Meteo request: %s at %s (%s)", variable, zone, url)
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        return self._parse_response(data, variable)
+
+    def _parse_response(self, data: dict, variable: str) -> pd.DataFrame:
+        """Parse Open-Meteo JSON response into a DataFrame.
+
+        Response format:
+        {
+            "hourly": {
+                "time": ["2024-01-01T00:00", "2024-01-01T01:00", ...],
+                "temperature_2m": [2.1, 1.8, ...]
+            }
+        }
+        """
+        hourly = data.get("hourly", {})
+        times = hourly.get("time", [])
+        values = hourly.get(variable, [])
+
+        if not times or not values:
+            logger.warning("No data in Open-Meteo response for %s", variable)
+            return pd.DataFrame(columns=["timestamp", "value"])
+
+        df = pd.DataFrame({
+            "timestamp": pd.to_datetime(times),
+            "value": values,
+        })
+        df = df.dropna(subset=["value"])
+
+        logger.info("Parsed %d data points from Open-Meteo", len(df))
+        return df
+
+    def fetch_multiple_variables(
+        self,
+        variables: list[str],
+        zone: str,
+        start: datetime,
+        end: datetime,
+    ) -> pd.DataFrame:
+        """Fetch multiple weather variables at once (more efficient).
+
+        Returns a wide-format DataFrame with timestamp + one column per variable.
+        """
+        location = ZONE_LOCATIONS[zone]
+
+        params = {
+            "latitude": location["lat"],
+            "longitude": location["lon"],
+            "hourly": ",".join(variables),
+            "start_date": start.strftime("%Y-%m-%d"),
+            "end_date": end.strftime("%Y-%m-%d"),
+            "timezone": "UTC",
+        }
+
+        now = datetime.utcnow()
+        url = HISTORICAL_URL if (now - end).days > 5 else FORECAST_URL
+
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        hourly = data.get("hourly", {})
+        times = hourly.get("time", [])
+
+        if not times:
+            return pd.DataFrame()
+
+        result = {"timestamp": pd.to_datetime(times)}
+        for var in variables:
+            result[var] = hourly.get(var, [None] * len(times))
+
+        return pd.DataFrame(result)
 
     def list_available_series(self) -> list[dict]:
         """List all available weather series combinations."""

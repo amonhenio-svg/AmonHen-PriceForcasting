@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { getMarkets } from "../services/api";
 
+const TYPE_LABELS = {
+  day_ahead: "Day-Ahead",
+  intraday: "Intraday",
+  reserve: "Reserve",
+};
+
 export default function MarketList({ onSelectMarket, selectedMarketId }) {
   const [markets, setMarkets] = useState([]);
   const [error, setError] = useState(null);
@@ -31,7 +37,8 @@ export default function MarketList({ onSelectMarket, selectedMarketId }) {
           >
             <strong>{market.name}</strong>
             <span>
-              {market.country} &middot; {market.commodity} &middot;{" "}
+              {market.country} &middot;{" "}
+              {TYPE_LABELS[market.market_type] || market.market_type} &middot;{" "}
               {market.currency}/{market.unit}
             </span>
           </li>
