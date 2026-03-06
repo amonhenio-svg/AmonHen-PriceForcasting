@@ -1,9 +1,16 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./prices.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./prices.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# SQLite needs check_same_thread=False; PostgreSQL does not
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
