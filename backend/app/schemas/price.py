@@ -3,20 +3,20 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class PriceCreate(BaseModel):
-    market_id: int
+class TimeSeriesDataCreate(BaseModel):
+    series_id: int
     timestamp: datetime
-    price: float
+    value: float
 
 
-class PriceBulkCreate(BaseModel):
-    prices: list[PriceCreate]
+class TimeSeriesDataBulkCreate(BaseModel):
+    data: list[TimeSeriesDataCreate]
 
 
-class PriceResponse(BaseModel):
+class TimeSeriesDataResponse(BaseModel):
     id: int
-    market_id: int
+    series_id: int
     timestamp: datetime
-    price: float
+    value: float
 
     model_config = {"from_attributes": True}

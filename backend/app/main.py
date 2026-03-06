@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import markets, prices
+from app.routers import markets, prices, data_sources, series, forecasts
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,6 +22,9 @@ app.add_middleware(
 
 app.include_router(markets.router)
 app.include_router(prices.router)
+app.include_router(data_sources.router)
+app.include_router(series.router)
+app.include_router(forecasts.router)
 
 
 @app.get("/api/health")
