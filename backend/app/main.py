@@ -7,7 +7,11 @@ from fastapi.staticfiles import StaticFiles
 from app.database import Base, engine
 from app.routers import markets, prices, data_sources, series, forecasts, ingest
 
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    import logging
+    logging.warning(f"Could not create tables on startup: {e}")
 
 app = FastAPI(
     title="AmonHen Price Forecasting",
