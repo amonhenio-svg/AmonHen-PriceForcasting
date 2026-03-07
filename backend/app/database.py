@@ -5,12 +5,19 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./prices.db")
 
-# SQLite needs check_same_thread=False; PostgreSQL does not
+# SQLite needs check_same_thread=False; PostgreSQL gets a connect timeout
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
+elif DATABASE_URL.startswith("postgresql"):
+    connect_args["connect_timeout"] = 5
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_timeout=10,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

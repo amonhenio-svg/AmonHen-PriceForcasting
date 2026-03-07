@@ -10,4 +10,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Run seed (best-effort) then start server on Railway's dynamic PORT
-CMD ["sh", "-c", "python seed_germany_pilot.py || echo 'Seed failed, continuing...'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "timeout 15 python seed_germany_pilot.py || echo 'Seed skipped'; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
