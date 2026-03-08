@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,6 +14,11 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/api/forecasts", tags=["forecasts"])
+
+
+class RunForecastRequest(BaseModel):
+    forecast_start: datetime | None = None
+    training_start: datetime | None = None
 
 
 @router.get("/targets", response_model=list[ForecastTargetResponse])
@@ -63,3 +71,23 @@ def get_forecast_results(
         .order_by(ForecastResult.timestamp)
         .all()
     )
+
+
+@router.post("/run/{target_id}", response_model=ForecastRunResponse)
+def trigger_forecast_run(
+    target_id: int,
+    body: RunForecastRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    """Trigger a forecast run for a given target."""
+    target = db.query(ForecastTarget).filter(ForecastTarget.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Forecast target not found")
+
+    from app.forecasting.pipeline import run_forecast
+
+    forecast_start = (body.forecast_start if body and body.forecast_start else datetime.utcnow())
+    training_start = body.training_start if body else None
+
+    run = run_forecast(db, target_id, forecast_start, training_start)
+    return run

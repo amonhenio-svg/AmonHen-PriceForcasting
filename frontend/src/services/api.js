@@ -103,6 +103,14 @@ export function getForecastResults(forecastRunId) {
   );
 }
 
+// Run forecast
+export function runForecast(targetId) {
+  return request(`/api/forecasts/run/${targetId}`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 // Health
 export function getHealth() {
   return request("/api/health");

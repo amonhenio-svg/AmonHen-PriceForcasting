@@ -295,6 +295,29 @@
   font-size: 0.9rem;
 }
 
+/* Run forecast button */
+.run-forecast-btn {
+  padding: 0.5rem 1.25rem;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background 0.15s;
+}
+
+.run-forecast-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.run-forecast-btn:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
 /* Utility */
 .error {
   color: #dc2626;

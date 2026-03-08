@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { getForecastTargets, getForecastRuns } from "../services/api";
+import React, { useEffect, useState, useCallback } from "react";
+import { getForecastTargets, getForecastRuns, runForecast } from "../services/api";
 
 export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
   const [targets, setTargets] = useState([]);
   const [runs, setRuns] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [error, setError] = useState(null);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     if (!market) {
@@ -22,7 +23,7 @@ export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
       .catch((err) => setError(err.message));
   }, [market]);
 
-  useEffect(() => {
+  const loadRuns = useCallback(() => {
     if (!selectedTarget) {
       setRuns([]);
       return;
@@ -31,6 +32,25 @@ export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
       .then(setRuns)
       .catch(() => setRuns([]));
   }, [selectedTarget]);
+
+  useEffect(() => {
+    loadRuns();
+  }, [loadRuns]);
+
+  const handleRunForecast = async () => {
+    if (!selectedTarget) return;
+    setRunning(true);
+    setError(null);
+    try {
+      const run = await runForecast(selectedTarget.id);
+      loadRuns();
+      onSelectRun(run.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRunning(false);
+    }
+  };
 
   if (!market) return null;
 
@@ -57,6 +77,15 @@ export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
               </button>
             ))}
           </div>
+          {selectedTarget && (
+            <button
+              className="run-forecast-btn"
+              onClick={handleRunForecast}
+              disabled={running}
+            >
+              {running ? "Running..." : "Run Forecast"}
+            </button>
+          )}
           {runs.length > 0 && (
             <div className="run-list">
               <h4>Recent Runs</h4>
