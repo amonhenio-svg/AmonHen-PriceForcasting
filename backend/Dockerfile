@@ -14,5 +14,4 @@ COPY . .
 
 ENV PORT=8000
 
-# Start server on Railway's dynamic PORT
-CMD ["sh", "-c", "python -c 'from app.main import app; print(\"App imported OK\")' && (timeout 15 python seed_germany_pilot.py || echo 'Seed skipped') && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+CMD ["sh", "start.sh"]
