@@ -3,12 +3,13 @@
 Orchestrates the full workflow:
 1. Load target and feature data from the database
 2. Build feature matrix (calendar, lags, fundamentals)
-3. Train/load models
+3. Train/load models (with proper train/validation split)
 4. Generate forecasts
 5. Store results
 """
 
 import json
+import logging
 from datetime import datetime
 
 import numpy as np
@@ -23,11 +24,15 @@ from app.forecasting.models.sarimax_model import SARIMAXForecastModel
 from app.forecasting.ensemble import WeightedEnsemble
 from app.models import ForecastTarget, ForecastRun, ForecastResult
 
+logger = logging.getLogger(__name__)
 
 MODEL_REGISTRY = {
     "xgboost": XGBoostForecastModel,
     "sarimax": SARIMAXForecastModel,
 }
+
+# Hold back the last N hours for validation (7 days)
+VALIDATION_HOURS = 168
 
 
 def _build_forecast_features(
@@ -97,6 +102,10 @@ def run_forecast(
 ) -> ForecastRun:
     """Execute a full forecasting pipeline for a given target.
 
+    Uses a train/validation split: trains on all data except the last
+    VALIDATION_HOURS, evaluates on the held-out set, then reports
+    out-of-sample metrics alongside in-sample metrics.
+
     Args:
         db: Database session.
         target_id: ID of the forecast target.
@@ -153,16 +162,30 @@ def run_forecast(
         # Drop rows with NaN from lag/rolling features
         df = df.dropna()
 
-        if df.empty:
+        if len(df) < VALIDATION_HOURS + 100:
             run.status = "failed"
-            run.metrics_json = json.dumps({"error": "Not enough data after feature engineering"})
+            run.metrics_json = json.dumps({
+                "error": f"Not enough data after feature engineering. "
+                         f"Need at least {VALIDATION_HOURS + 100} rows, got {len(df)}."
+            })
             db.commit()
             return run
 
-        # Step 3: Split features and target
+        # Step 3: Train/validation split
         feature_cols = [c for c in df.columns if c not in ("timestamp", "target")]
-        X_train = df[feature_cols]
-        y_train = df["target"]
+
+        df_train = df.iloc[:-VALIDATION_HOURS]
+        df_val = df.iloc[-VALIDATION_HOURS:]
+
+        X_train = df_train[feature_cols]
+        y_train = df_train["target"]
+        X_val = df_val[feature_cols]
+        y_val = df_val["target"]
+
+        logger.info(
+            "Train/val split: %d train rows, %d validation rows",
+            len(X_train), len(X_val),
+        )
 
         # Step 4: Train models
         models = []
@@ -175,14 +198,48 @@ def run_forecast(
         if not models:
             raise ValueError(f"No valid models found in config: {model_names}")
 
+        all_metrics = {}
+
         if len(models) == 1:
             model = models[0]
-            metrics = model.train(X_train, y_train)
-            run.metrics_json = json.dumps(metrics)
+            train_metrics = model.train(X_train, y_train)
+
+            # Out-of-sample validation metrics
+            val_preds = model.predict(X_val)
+            val_metrics = model.compute_metrics(y_val, val_preds)
+
+            all_metrics = {
+                "train": train_metrics,
+                "validation": val_metrics,
+            }
+            logger.info("Train MAE: %.2f, Val MAE: %.2f",
+                        train_metrics["mae"], val_metrics["mae"])
         else:
             ensemble = WeightedEnsemble(models, weights=ensemble_weights)
-            all_metrics = ensemble.train_all(X_train, y_train)
-            run.metrics_json = json.dumps({"models": all_metrics})
+            model_train_metrics = ensemble.train_all(X_train, y_train)
+
+            # Optimize ensemble weights on validation data
+            ensemble.optimize_weights(X_val, y_val)
+
+            val_preds = ensemble.predict(X_val)
+            val_metrics = models[0].compute_metrics(y_val, val_preds)
+
+            all_metrics = {
+                "models": model_train_metrics,
+                "ensemble_weights": ensemble.weights,
+                "validation": val_metrics,
+            }
+
+        # Now retrain on full data for the actual forecast
+        X_full = df[feature_cols]
+        y_full = df["target"]
+
+        if len(models) == 1:
+            model.train(X_full, y_full)
+        else:
+            ensemble.train_all(X_full, y_full)
+
+        run.metrics_json = json.dumps(all_metrics)
 
         # Step 5: Generate forecast
         horizon_hours = target.horizon_hours or 24
@@ -195,9 +252,7 @@ def run_forecast(
         if len(models) == 1:
             preds, lower, upper = model.predict_intervals(X_forecast)
         else:
-            preds = ensemble.predict(X_forecast)
-            lower = preds
-            upper = preds
+            preds, lower, upper = ensemble.predict_intervals(X_forecast)
 
         # Store forecast results
         for i, ts in enumerate(future_timestamps):
@@ -213,6 +268,7 @@ def run_forecast(
         db.commit()
 
     except Exception as e:
+        logger.exception("Forecast run %d failed", run.id)
         run.status = "failed"
         run.metrics_json = json.dumps({"error": str(e)})
         db.commit()

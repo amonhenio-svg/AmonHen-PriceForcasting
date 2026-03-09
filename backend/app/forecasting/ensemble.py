@@ -65,3 +65,26 @@ class WeightedEnsemble:
 
         self.weights = best_weights
         return best_weights
+
+    def predict_intervals(
+        self, X: pd.DataFrame, confidence: float = 0.9
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Generate weighted ensemble prediction with confidence intervals.
+
+        Combines intervals from individual models using the same weights.
+        """
+        all_preds = []
+        all_lower = []
+        all_upper = []
+
+        for model in self.models:
+            preds, lower, upper = model.predict_intervals(X, confidence)
+            all_preds.append(preds)
+            all_lower.append(lower)
+            all_upper.append(upper)
+
+        preds = np.average(all_preds, axis=0, weights=self.weights)
+        lower = np.average(all_lower, axis=0, weights=self.weights)
+        upper = np.average(all_upper, axis=0, weights=self.weights)
+
+        return preds, lower, upper
