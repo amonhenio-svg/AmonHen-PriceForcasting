@@ -19,6 +19,11 @@ from sqlalchemy.orm import Session
 from app.forecasting.features.calendar import add_calendar_features
 from app.forecasting.features.lags import add_lag_features, add_rolling_features
 from app.forecasting.features.fundamental import build_feature_matrix
+from app.forecasting.features.forward_curve import (
+    add_forward_curve_features,
+    add_forward_curve_forecast_features,
+    get_forward_col_names,
+)
 from app.forecasting.models.xgboost_model import XGBoostForecastModel
 from app.forecasting.models.sarimax_model import SARIMAXForecastModel
 from app.forecasting.ensemble import WeightedEnsemble
@@ -84,6 +89,13 @@ def _build_forecast_features(
             last_val = df_train[col].iloc[-1] if col in df_train.columns else 0.0
             forecast_part[col] = last_val
 
+    # Forward curve features: use last known commodity/forward prices
+    fwd_cols = get_forward_col_names(forecast_part)
+    if fwd_cols:
+        forecast_part = add_forward_curve_forecast_features(
+            forecast_part, df_train, fwd_cols,
+        )
+
     forecast_part = forecast_part.ffill().fillna(0)
 
     # Ensure we return exactly the columns the model expects
@@ -123,6 +135,7 @@ def run_forecast(
     config = json.loads(target.model_config_json) if target.model_config_json else {}
     model_names = config.get("models", ["xgboost"])
     feature_series_ids = config.get("feature_series_ids", [])
+    forward_series_ids = config.get("forward_series_ids", [])
     ensemble_weights = config.get("ensemble_weights", None)
 
     # Create forecast run record
@@ -154,7 +167,18 @@ def run_forecast(
             db.commit()
             return run
 
-        # Step 2: Add engineered features
+        # Step 2: Add forward curve / commodity features
+        if forward_series_ids:
+            df = add_forward_curve_features(
+                df, db, forward_series_ids,
+                pd.Timestamp(training_start), pd.Timestamp(training_end),
+            )
+            logger.info(
+                "Forward curve features added: %s",
+                get_forward_col_names(df),
+            )
+
+        # Step 3: Add engineered features
         df = add_calendar_features(df)
         df = add_lag_features(df, value_col="target")
         df = add_rolling_features(df, value_col="target")
@@ -171,7 +195,7 @@ def run_forecast(
             db.commit()
             return run
 
-        # Step 3: Train/validation split
+        # Step 4: Train/validation split
         feature_cols = [c for c in df.columns if c not in ("timestamp", "target")]
 
         df_train = df.iloc[:-VALIDATION_HOURS]
@@ -187,7 +211,7 @@ def run_forecast(
             len(X_train), len(X_val),
         )
 
-        # Step 4: Train models
+        # Step 5: Train models
         models = []
         for model_name in model_names:
             model_cls = MODEL_REGISTRY.get(model_name)
@@ -241,7 +265,7 @@ def run_forecast(
 
         run.metrics_json = json.dumps(all_metrics)
 
-        # Step 5: Generate forecast
+        # Step 6: Generate forecast
         horizon_hours = target.horizon_hours or 24
         last_timestamp = pd.Timestamp(df["timestamp"].iloc[-1])
 

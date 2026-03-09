@@ -10,3 +10,4 @@ statsmodels==0.14.4
 requests==2.32.3
 psycopg2-binary==2.9.10
 python-dotenv==1.0.1
+yfinance>=0.2.36

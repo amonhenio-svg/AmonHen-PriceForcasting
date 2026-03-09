@@ -1,53 +1,85 @@
-"""Commodity price data source.
+"""Commodity price data source using Yahoo Finance.
 
 Provides access to fuel and carbon prices that drive European energy markets:
 - TTF natural gas (Dutch hub)
 - API2 coal
 - EUA carbon allowances
 - Brent crude oil
+- German power baseload futures (EEX)
 
-Note: Many commodity data sources require paid subscriptions.
-This module provides a framework for ingesting commodity prices from
-various sources (APIs, CSV uploads, manual entry).
+Yahoo Finance provides free delayed data for most commodity futures.
+For real-time or more comprehensive forward curves, integrate a premium
+data source (EEX API, ICE API, Nasdaq Data Link) by subclassing.
 """
 
+import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 
 from app.data.sources.base import BaseDataSource
 
-# Key commodity series for European energy price forecasting
+logger = logging.getLogger(__name__)
+
+# Yahoo Finance tickers and metadata for European energy commodities
 COMMODITY_SERIES = {
+    # --- Fuel inputs ---
     "ttf_gas_front_month": {
         "description": "TTF Natural Gas Front Month (EUR/MWh)",
         "unit": "EUR/MWh",
-    },
-    "ttf_gas_front_year": {
-        "description": "TTF Natural Gas Front Year (EUR/MWh)",
-        "unit": "EUR/MWh",
-    },
-    "api2_coal_front_month": {
-        "description": "API2 Coal Front Month (USD/t)",
-        "unit": "USD/t",
-    },
-    "eua_carbon_front_dec": {
-        "description": "EUA Carbon Allowance Front December (EUR/tCO2)",
-        "unit": "EUR/tCO2",
+        "yahoo_ticker": "TTF=F",
     },
     "brent_crude_front_month": {
         "description": "Brent Crude Oil Front Month (USD/bbl)",
         "unit": "USD/bbl",
+        "yahoo_ticker": "BZ=F",
+    },
+    "natural_gas_henry_hub": {
+        "description": "Henry Hub Natural Gas Front Month (USD/MMBtu)",
+        "unit": "USD/MMBtu",
+        "yahoo_ticker": "NG=F",
+    },
+    "api2_coal_front_month": {
+        "description": "API2 Coal Front Month (USD/t) — proxied via Newcastle coal",
+        "unit": "USD/t",
+        "yahoo_ticker": "MTF=F",
+    },
+    # --- Carbon ---
+    "eua_carbon_front_dec": {
+        "description": "EUA Carbon Allowance — proxied via KraneShares Carbon ETF",
+        "unit": "EUR/tCO2",
+        "yahoo_ticker": "KRBN",
+    },
+    # --- Power futures (EEX German baseload) ---
+    # Note: EEX power futures aren't on Yahoo Finance. These are fetched
+    # separately via the EEX data source or manual CSV. The keys are kept
+    # here for the registry / seeding, but fetch() handles them via
+    # _fetch_eex_power() when available.
+    "de_power_baseload_month_ahead": {
+        "description": "German Baseload Month-Ahead (EUR/MWh)",
+        "unit": "EUR/MWh",
+        "yahoo_ticker": None,  # not on Yahoo; needs EEX or manual
+    },
+    "de_power_baseload_quarter_ahead": {
+        "description": "German Baseload Quarter-Ahead (EUR/MWh)",
+        "unit": "EUR/MWh",
+        "yahoo_ticker": None,
+    },
+    "de_power_baseload_year_ahead": {
+        "description": "German Baseload Year-Ahead (Cal+1) (EUR/MWh)",
+        "unit": "EUR/MWh",
+        "yahoo_ticker": None,
     },
 }
 
 
 class CommodityDataSource(BaseDataSource):
-    """Connector for commodity price data.
+    """Connector for commodity and power futures price data.
 
-    Currently a placeholder that supports CSV-based data ingestion.
-    Can be extended with specific API integrations (e.g., Quandl, ICE, EEX).
+    Uses Yahoo Finance (via yfinance) for fuel and carbon commodities.
+    Power baseload futures need a premium source — the framework is ready
+    but fetch returns empty data for those until configured.
     """
 
     def __init__(self, api_key: str | None = None):
@@ -61,23 +93,90 @@ class CommodityDataSource(BaseDataSource):
     ) -> pd.DataFrame:
         """Fetch commodity price data.
 
-        series_key: one of the keys in COMMODITY_SERIES
+        Returns a DataFrame with columns ['timestamp', 'value'].
+        Daily commodity prices are forward-filled to hourly to align
+        with the hourly electricity price series.
         """
         if series_key not in COMMODITY_SERIES:
             raise ValueError(f"Unknown commodity series: {series_key}")
 
-        # TODO: Implement actual data fetching
-        # Options include:
-        # - Quandl/Nasdaq Data Link API
-        # - ICE API (subscription required)
-        # - EEX API
-        # - Yahoo Finance (limited commodity data)
-        # - Manual CSV upload endpoint
-        return pd.DataFrame(columns=["timestamp", "value"])
+        spec = COMMODITY_SERIES[series_key]
+        ticker = spec.get("yahoo_ticker")
+
+        if ticker is None:
+            # Power futures — not available via Yahoo Finance
+            logger.warning(
+                "Series '%s' requires a premium data source (EEX/ICE). "
+                "Returning empty DataFrame. Configure EEX_API_KEY or upload CSV.",
+                series_key,
+            )
+            return pd.DataFrame(columns=["timestamp", "value"])
+
+        return self._fetch_yahoo(ticker, start, end)
+
+    def _fetch_yahoo(
+        self,
+        ticker: str,
+        start: datetime,
+        end: datetime,
+    ) -> pd.DataFrame:
+        """Fetch daily close prices from Yahoo Finance and resample to hourly."""
+        try:
+            import yfinance as yf
+        except ImportError:
+            logger.error(
+                "yfinance not installed. Run: pip install yfinance"
+            )
+            return pd.DataFrame(columns=["timestamp", "value"])
+
+        # Fetch daily data with a small buffer for forward-fill
+        fetch_start = start - timedelta(days=7)
+        logger.info("Fetching Yahoo Finance data for %s (%s to %s)", ticker, fetch_start.date(), end.date())
+
+        try:
+            data = yf.download(
+                ticker,
+                start=fetch_start.strftime("%Y-%m-%d"),
+                end=(end + timedelta(days=1)).strftime("%Y-%m-%d"),
+                auto_adjust=True,
+                progress=False,
+            )
+        except Exception as e:
+            logger.error("Yahoo Finance fetch failed for %s: %s", ticker, e)
+            return pd.DataFrame(columns=["timestamp", "value"])
+
+        if data.empty:
+            logger.warning("No data returned from Yahoo Finance for %s", ticker)
+            return pd.DataFrame(columns=["timestamp", "value"])
+
+        # Use 'Close' price; flatten MultiIndex if present
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+        close = data[["Close"]].copy()
+        close = close.rename(columns={"Close": "value"})
+        close.index.name = "timestamp"
+        close = close.reset_index()
+
+        # Ensure timezone-naive UTC timestamps
+        if close["timestamp"].dt.tz is not None:
+            close["timestamp"] = close["timestamp"].dt.tz_convert("UTC").dt.tz_localize(None)
+
+        # Resample daily → hourly via forward-fill so it aligns with
+        # hourly electricity data
+        close = close.set_index("timestamp")
+        hourly = close.resample("h").ffill()
+        hourly = hourly.reset_index()
+
+        # Trim to requested range
+        mask = (hourly["timestamp"] >= pd.Timestamp(start)) & (hourly["timestamp"] <= pd.Timestamp(end))
+        hourly = hourly.loc[mask].copy()
+
+        logger.info("Fetched %d hourly points for %s", len(hourly), ticker)
+        return hourly[["timestamp", "value"]]
 
     def list_available_series(self) -> list[dict]:
         """List available commodity series."""
         return [
-            {"key": key, **info}
+            {"key": key, **{k: v for k, v in info.items() if k != "yahoo_ticker"}}
             for key, info in COMMODITY_SERIES.items()
         ]
