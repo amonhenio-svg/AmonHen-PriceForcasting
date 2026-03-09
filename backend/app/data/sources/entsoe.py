@@ -97,11 +97,22 @@ class EntsoeDataSource(BaseDataSource):
         params = {
             "securityToken": self.api_key,
             "documentType": doc_type,
-            "in_Domain": area_code,
-            "out_Domain": area_code,
             "periodStart": start.strftime("%Y%m%d%H%M"),
             "periodEnd": end.strftime("%Y%m%d%H%M"),
         }
+
+        # ENTSO-E API uses different domain parameters depending on doc type:
+        # - Day-ahead prices: in_Domain + out_Domain
+        # - Load (actual/forecast): outBiddingZone_Domain
+        # - Wind/solar forecast: in_Domain
+        # - Generation per type: in_Domain
+        if doc_type_name == "day_ahead_prices":
+            params["in_Domain"] = area_code
+            params["out_Domain"] = area_code
+        elif doc_type_name in ("actual_load", "load_forecast"):
+            params["outBiddingZone_Domain"] = area_code
+        else:
+            params["in_Domain"] = area_code
 
         # Add process type for load/generation queries
         if doc_type_name in PROCESS_TYPES:

@@ -35,12 +35,21 @@ def _is_postgresql(db: Session) -> bool:
     return "postgresql" in str(db.bind.url)
 
 
+def _to_python_datetime(ts) -> datetime:
+    """Convert pandas Timestamp (possibly tz-aware) to naive Python datetime."""
+    if isinstance(ts, pd.Timestamp):
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert("UTC").tz_localize(None)
+        return ts.to_pydatetime()
+    return ts
+
+
 def _bulk_upsert_postgres(db: Session, series_id: int, df: pd.DataFrame) -> int:
     """Bulk upsert using PostgreSQL ON CONFLICT."""
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     rows = [
-        {"series_id": series_id, "timestamp": row["timestamp"], "value": float(row["value"])}
+        {"series_id": series_id, "timestamp": _to_python_datetime(row["timestamp"]), "value": float(row["value"])}
         for _, row in df.iterrows()
     ]
     if not rows:
@@ -64,7 +73,7 @@ def _bulk_upsert_postgres(db: Session, series_id: int, df: pd.DataFrame) -> int:
 def _bulk_upsert_sqlite(db: Session, series_id: int, df: pd.DataFrame) -> int:
     """Bulk insert for SQLite, skipping duplicates."""
     rows = [
-        {"series_id": series_id, "timestamp": row["timestamp"], "value": float(row["value"])}
+        {"series_id": series_id, "timestamp": _to_python_datetime(row["timestamp"]), "value": float(row["value"])}
         for _, row in df.iterrows()
     ]
     if not rows:
