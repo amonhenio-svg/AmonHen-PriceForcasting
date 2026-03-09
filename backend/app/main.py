@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,10 +22,25 @@ try:
 except Exception as e:
     _logging.warning(f"Could not run seed on startup: {e}")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start background scheduler on app startup."""
+    enable_scheduler = os.environ.get("ENABLE_SCHEDULER", "true").lower() in ("1", "true", "yes")
+    if enable_scheduler:
+        from app.scheduler import start_scheduler
+        await start_scheduler()
+        _logging.info("Background scheduler started")
+    else:
+        _logging.info("Scheduler disabled (ENABLE_SCHEDULER=%s)", os.environ.get("ENABLE_SCHEDULER"))
+    yield
+
+
 app = FastAPI(
     title="AmonHen Price Forecasting",
     description="Price forecasting API for European energy markets",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS: comma-separated origins via env var; defaults to permissive for initial setup
