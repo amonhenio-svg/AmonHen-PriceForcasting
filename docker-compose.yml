@@ -19,7 +19,7 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql://amonhen:amonhen@db:5432/amonhen
-      CORS_ORIGINS: "http://localhost:3000,http://localhost"
+      CORS_ORIGINS: "http://localhost:3000,http://localhost,http://localhost:80"
       ENTSOE_API_KEY: ${ENTSOE_API_KEY:-}
     ports:
       - "8000:8000"

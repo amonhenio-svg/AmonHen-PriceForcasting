@@ -86,3 +86,36 @@ def ingest_market(
         results=results,
         total_new_points=sum(r.new_points for r in results),
     )
+
+
+@router.post("/all", response_model=BulkIngestResponse)
+def ingest_all(
+    start: datetime = Query(..., description="Start datetime (ISO 8601)"),
+    end: datetime = Query(..., description="End datetime (ISO 8601)"),
+    db: Session = Depends(get_db),
+):
+    """Trigger data fetch for ALL series (including cross-market commodities)."""
+    series_list = db.query(SeriesDefinition).all()
+    if not series_list:
+        raise HTTPException(status_code=404, detail="No series definitions found")
+
+    results = []
+    for series in series_list:
+        try:
+            count = fetch_and_store(db, series, start, end)
+            results.append(IngestResponse(
+                series_id=series.id,
+                series_name=series.name,
+                new_points=count,
+            ))
+        except Exception as e:
+            results.append(IngestResponse(
+                series_id=series.id,
+                series_name=f"{series.name} (ERROR: {e})",
+                new_points=0,
+            ))
+
+    return BulkIngestResponse(
+        results=results,
+        total_new_points=sum(r.new_points for r in results),
+    )
