@@ -916,6 +916,237 @@
   cursor: not-allowed;
 }
 
+/* ===== Chart Enhancements ===== */
+.chart-header {
+  margin-bottom: 1rem;
+}
+
+.chart-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.chart-title-row h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+
+.range-selector {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.range-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.range-btn:hover {
+  background: #f1f5f9;
+}
+
+.range-btn.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.zoom-reset-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #2563eb;
+}
+
+.zoom-reset-btn:hover {
+  background: #eff6ff;
+}
+
+.chart-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.chart-tooltip {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chart-tooltip-label {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: #1a1a2e;
+}
+
+.chart-tooltip p {
+  margin: 0.1rem 0;
+}
+
+.price-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #64748b;
+}
+
+/* ===== Metrics & Accuracy ===== */
+.run-metrics,
+.accuracy-panel {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.run-metrics h5,
+.accuracy-panel h5 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.metrics-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.metric-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.6rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  min-width: 80px;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.metric-unit {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-left: 0.2rem;
+}
+
+/* ===== Commodity Panel ===== */
+.commodity-panel {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.commodity-panel h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.commodity-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.commodity-card {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.commodity-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.commodity-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.commodity-unit {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.commodity-card-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.commodity-price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.commodity-change {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.commodity-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.commodity-chart {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.forecast-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 /* Utility */
 .error {
   color: #dc2626;

@@ -5,6 +5,7 @@ import MarketList from "./components/MarketList";
 import PriceChart from "./components/PriceChart";
 import ForecastPanel from "./components/ForecastPanel";
 import SeriesExplorer from "./components/SeriesExplorer";
+import CommodityPanel from "./components/CommodityPanel";
 import "./App.css";
 
 function Dashboard() {
@@ -26,22 +27,28 @@ function Dashboard() {
         />
       </aside>
       <section className="main-panel">
-        {selectedMarket && (
-          <div className="tab-bar">
-            <button
-              className={`tab ${activeTab === "prices" ? "active" : ""}`}
-              onClick={() => setActiveTab("prices")}
-            >
-              Prices
-            </button>
+        <div className="tab-bar">
+          <button
+            className={`tab ${activeTab === "prices" ? "active" : ""}`}
+            onClick={() => setActiveTab("prices")}
+          >
+            Prices
+          </button>
+          <button
+            className={`tab ${activeTab === "commodities" ? "active" : ""}`}
+            onClick={() => setActiveTab("commodities")}
+          >
+            Commodities
+          </button>
+          {selectedMarket && (
             <button
               className={`tab ${activeTab === "series" ? "active" : ""}`}
               onClick={() => setActiveTab("series")}
             >
               Data Series
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {activeTab === "prices" && (
           <>
@@ -56,6 +63,8 @@ function Dashboard() {
             />
           </>
         )}
+
+        {activeTab === "commodities" && <CommodityPanel />}
 
         {activeTab === "series" && (
           <SeriesExplorer market={selectedMarket} />

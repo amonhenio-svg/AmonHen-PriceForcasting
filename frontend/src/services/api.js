@@ -111,6 +111,15 @@ export function runForecast(targetId) {
   });
 }
 
+// Dashboard
+export function getDashboardSummary(marketId) {
+  return request(`/api/dashboard/summary?market_id=${marketId}`);
+}
+
+export function getForecastAccuracy(forecastRunId) {
+  return request(`/api/dashboard/accuracy?forecast_run_id=${forecastRunId}`);
+}
+
 // Health
 export function getHealth() {
   return request("/api/health");

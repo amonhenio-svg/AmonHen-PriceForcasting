@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import markets, prices, data_sources, series, forecasts, ingest
+from app.routers import markets, prices, data_sources, series, forecasts, ingest, dashboard
 
 import logging as _logging
 
@@ -61,6 +61,7 @@ app.include_router(data_sources.router)
 app.include_router(series.router)
 app.include_router(forecasts.router)
 app.include_router(ingest.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/api/health")
