@@ -111,15 +111,29 @@ async def _scheduler_loop():
             logger.error("Daily run failed: %s", e)
 
 
+async def _backfill_and_schedule():
+    """Background coroutine: backfill if needed, then start daily loop.
+
+    Runs entirely in the background so the app can start serving
+    immediately (critical for passing Railway's health check).
+    """
+    loop = asyncio.get_event_loop()
+    try:
+        did_backfill = await loop.run_in_executor(None, _backfill_if_empty)
+        if did_backfill:
+            logger.info("Running initial forecast after backfill...")
+            await loop.run_in_executor(None, _daily_forecast)
+    except Exception as e:
+        logger.error("Backfill/initial forecast failed: %s", e)
+
+    # Start the daily scheduler loop (runs forever)
+    await _scheduler_loop()
+
+
 async def start_scheduler():
-    """Entry point called from FastAPI lifespan. Backfills then starts daily loop."""
-    # Backfill in a thread to avoid blocking startup
-    did_backfill = await asyncio.get_event_loop().run_in_executor(None, _backfill_if_empty)
+    """Entry point called from FastAPI lifespan.
 
-    if did_backfill:
-        # Also run an initial forecast after backfill
-        logger.info("Running initial forecast after backfill...")
-        await asyncio.get_event_loop().run_in_executor(None, _daily_forecast)
-
-    # Start the daily scheduler loop
-    asyncio.create_task(_scheduler_loop())
+    Kicks off backfill + daily loop as a fire-and-forget task so the
+    lifespan yields immediately and the app passes health checks.
+    """
+    asyncio.create_task(_backfill_and_schedule())
