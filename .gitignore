@@ -13,6 +13,9 @@ node_modules/
 frontend/build/
 frontend/dist/
 
+# Backend served static (generated from frontend build)
+backend/static/
+
 # IDE
 .vscode/
 .idea/
