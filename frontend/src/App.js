@@ -11,11 +11,13 @@ import "./App.css";
 function Dashboard() {
   const [selectedMarket, setSelectedMarket] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
+  const [selectedTarget, setSelectedTarget] = useState(null);
   const [activeTab, setActiveTab] = useState("prices");
 
   const handleMarketSelect = (market) => {
     setSelectedMarket(market);
     setSelectedRunId(null);
+    setSelectedTarget(null);
   };
 
   return (
@@ -55,11 +57,13 @@ function Dashboard() {
             <PriceChart
               market={selectedMarket}
               forecastRunId={selectedRunId}
+              forecastHorizonHours={selectedTarget?.horizon_hours}
             />
             <ForecastPanel
               market={selectedMarket}
               onSelectRun={setSelectedRunId}
               selectedRunId={selectedRunId}
+              onTargetChange={setSelectedTarget}
             />
           </>
         )}

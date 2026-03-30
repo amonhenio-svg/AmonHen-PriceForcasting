@@ -44,22 +44,46 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-// Time range presets
-const RANGES = [
-  { label: "24h", hours: 24 },
-  { label: "7d", hours: 168 },
-  { label: "30d", hours: 720 },
-  { label: "90d", hours: 2160 },
-  { label: "All", hours: null },
-];
+// Build time ranges that include the forecast horizon context
+function buildRanges(forecastHorizonHours) {
+  const ranges = [
+    { label: "24h", hours: 24 },
+    { label: "7d", hours: 168 },
+    { label: "30d", hours: 720 },
+    { label: "90d", hours: 2160 },
+    { label: "All", hours: null },
+  ];
 
-export default function PriceChart({ market, forecastRunId }) {
+  if (!forecastHorizonHours) return ranges;
+
+  // Only keep ranges that are at least as long as the forecast horizon,
+  // plus a "Forecast" range that shows context + the full horizon
+  const contextHours = Math.max(forecastHorizonHours * 2, 48);
+  const forecastRange = {
+    label: `Forecast (${forecastHorizonHours}h)`,
+    hours: contextHours + forecastHorizonHours,
+    isForecastRange: true,
+  };
+
+  const valid = ranges.filter(
+    (r) => r.hours === null || r.hours >= forecastHorizonHours
+  );
+
+  // Insert forecast range at the beginning
+  return [forecastRange, ...valid];
+}
+
+export default function PriceChart({ market, forecastRunId, forecastHorizonHours }) {
   const [allData, setAllData] = useState([]);
   const [forecastData, setForecastData] = useState([]);
   const [seriesName, setSeriesName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeRange, setActiveRange] = useState("30d");
+  const ranges = React.useMemo(
+    () => buildRanges(forecastHorizonHours),
+    [forecastHorizonHours]
+  );
 
   // Drag-to-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState(null);
@@ -102,6 +126,14 @@ export default function PriceChart({ market, forecastRunId }) {
       .finally(() => setLoading(false));
   }, [market]);
 
+  // Auto-switch to forecast range when a forecast is selected
+  useEffect(() => {
+    if (forecastRunId && forecastHorizonHours) {
+      const fcRange = ranges.find((r) => r.isForecastRange);
+      if (fcRange) setActiveRange(fcRange.label);
+    }
+  }, [forecastRunId, forecastHorizonHours, ranges]);
+
   // Load forecast data if a run is selected
   useEffect(() => {
     if (!forecastRunId) {
@@ -127,14 +159,14 @@ export default function PriceChart({ market, forecastRunId }) {
 
   // Apply time range filter
   const getFilteredData = useCallback(() => {
-    const range = RANGES.find((r) => r.label === activeRange);
+    const range = ranges.find((r) => r.label === activeRange);
     let filtered = allData;
     if (range && range.hours && allData.length > 0) {
       const cutoff = Date.now() - range.hours * 3600 * 1000;
       filtered = allData.filter((d) => d.ts >= cutoff);
     }
     return filtered;
-  }, [allData, activeRange]);
+  }, [allData, activeRange, ranges]);
 
   // Merge actual and forecast data
   const chartData = React.useMemo(() => {
@@ -254,7 +286,7 @@ export default function PriceChart({ market, forecastRunId }) {
         </div>
         <div className="chart-controls">
           <div className="range-selector">
-            {RANGES.map((r) => (
+            {ranges.map((r) => (
               <button
                 key={r.label}
                 className={`range-btn ${activeRange === r.label ? "active" : ""}`}

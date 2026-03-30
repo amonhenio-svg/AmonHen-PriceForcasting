@@ -86,7 +86,7 @@ function AccuracyPanel({ runId }) {
   );
 }
 
-export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
+export default function ForecastPanel({ market, onSelectRun, selectedRunId, onTargetChange }) {
   const [targets, setTargets] = useState([]);
   const [runs, setRuns] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null);
@@ -103,7 +103,10 @@ export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
     getForecastTargets(market.id)
       .then((t) => {
         setTargets(t);
-        if (t.length > 0) setSelectedTarget(t[0]);
+        if (t.length > 0) {
+          setSelectedTarget(t[0]);
+          if (onTargetChange) onTargetChange(t[0]);
+        }
       })
       .catch((err) => setError(err.message));
   }, [market]);
@@ -172,6 +175,7 @@ export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
                 onClick={() => {
                   setSelectedTarget(t);
                   onSelectRun(null);
+                  if (onTargetChange) onTargetChange(t);
                 }}
               >
                 {t.name}
