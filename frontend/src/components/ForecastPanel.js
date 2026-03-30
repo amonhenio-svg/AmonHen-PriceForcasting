@@ -114,9 +114,16 @@ export default function ForecastPanel({ market, onSelectRun, selectedRunId }) {
       return;
     }
     getForecastRuns(selectedTarget.id)
-      .then(setRuns)
+      .then((runs) => {
+        setRuns(runs);
+        // Auto-select the latest completed run if none is selected
+        if (!selectedRunId && runs.length > 0) {
+          const completed = runs.find((r) => r.status === "completed");
+          if (completed) onSelectRun(completed.id);
+        }
+      })
       .catch(() => setRuns([]));
-  }, [selectedTarget]);
+  }, [selectedTarget, selectedRunId, onSelectRun]);
 
   useEffect(() => {
     loadRuns();

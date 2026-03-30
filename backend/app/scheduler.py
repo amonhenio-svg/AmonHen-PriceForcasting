@@ -22,31 +22,42 @@ BACKFILL_DAYS = int(os.environ.get("BACKFILL_DAYS", "365"))
 
 
 def _backfill_if_empty():
-    """If no time series data exists, backfill BACKFILL_DAYS of history."""
+    """Backfill BACKFILL_DAYS of history for any series that has no data.
+
+    Checks each series individually so that a failed source (e.g. missing
+    API key on first deploy) gets backfilled on the next restart.
+    """
     db = SessionLocal()
     try:
-        count = db.query(TimeSeriesData).limit(1).count()
-        if count > 0:
-            logger.info("Database already has data, skipping backfill.")
-            return False
-
-        logger.info("Empty database detected — backfilling %d days of data...", BACKFILL_DAYS)
-        end = datetime.utcnow()
-        start = end - timedelta(days=BACKFILL_DAYS)
-
         series_list = db.query(SeriesDefinition).all()
         if not series_list:
             logger.warning("No series definitions found. Run seed first.")
             return False
 
+        end = datetime.utcnow()
+        start = end - timedelta(days=BACKFILL_DAYS)
+        did_backfill = False
+
         for series in series_list:
+            count = (
+                db.query(TimeSeriesData)
+                .filter(TimeSeriesData.series_id == series.id)
+                .limit(1)
+                .count()
+            )
+            if count > 0:
+                logger.info("Series '%s' already has data, skipping.", series.name)
+                continue
+
+            logger.info("Backfilling %d days for series '%s'...", BACKFILL_DAYS, series.name)
             try:
                 n = fetch_and_store(db, series, start, end)
                 logger.info("Backfill: %d points for %s", n, series.name)
+                did_backfill = True
             except Exception as e:
                 logger.error("Backfill failed for %s: %s", series.name, e)
 
-        return True
+        return did_backfill
     finally:
         db.close()
 

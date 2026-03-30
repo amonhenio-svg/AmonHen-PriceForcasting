@@ -49,7 +49,8 @@ function generateDemoData() {
     const point = {
       timestamp: t.toISOString(),
       hour: t.toLocaleString(undefined, {
-        weekday: "short",
+        month: "short",
+        day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       }),
@@ -69,7 +70,8 @@ function generateDemoData() {
   }
 
   return { data, forecastStartLabel: forecastStart.toLocaleString(undefined, {
-    weekday: "short",
+    month: "short",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   })};
